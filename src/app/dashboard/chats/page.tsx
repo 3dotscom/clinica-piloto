@@ -1,27 +1,7 @@
 import { supabase } from '@/lib/db';
 
 export default async function ChatsPage() {
-  const { data: sessions } = await supabase
-    .from('chat_sessions')
-    .select('*')
-    .order('updated_at', { ascending: false });
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Chats Activos</h2>
-      <div className="bg-white rounded-lg shadow p-6">
-        {sessions?.map((session) => (
-          <div key={session.id} className="flex justify-between items-center py-4 border-b">
-            <div>
-              <p className="font-semibold">{session.customer_name || session.customer_phone}</p>
-              <p className="text-sm text-gray-500">Estado: {session.status}</p>
-            </div>
-            <button className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">
-              {session.status === 'ai_active' ? 'Pausar IA' : 'Reactivar IA'}
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  const { data: sessions, error } = await supabase.from('chat_sessions').select('*').order('updated_at', { ascending: false });
+  const rows = sessions ?? [];
+  return <section className="page"><div className="page-heading"><div><span className="eyebrow">Atención al cliente</span><h1>Chats & IA</h1><p className="subtitle">Supervisa conversaciones y decide cuándo interviene tu equipo.</p></div><div className="summary"><span className="status-dot" />{rows.length} conversaciones</div></div>{error && <p className="badge badge-red">No se pudieron cargar los chats.</p>}<div className="surface">{rows.length === 0 ? <div className="empty"><strong>No hay conversaciones todavía</strong><span>Los nuevos chats de WhatsApp aparecerán aquí.</span></div> : <div className="table-wrap"><table className="data-table"><thead><tr><th>Cliente</th><th>Estado</th><th>Última actividad</th><th>Acción</th></tr></thead><tbody>{rows.map((session) => <tr key={session.id}><td><strong>{session.customer_name || session.customer_phone}</strong></td><td><span className={`badge ${session.status === 'ai_active' ? 'badge-green' : 'badge-yellow'}`}>{session.status === 'ai_active' ? 'IA activa' : 'Atención humana'}</span></td><td>{session.updated_at ? new Date(session.updated_at).toLocaleString('es-ES') : '—'}</td><td><button className="btn btn-warning" aria-label={`Cambiar estado de ${session.customer_name || session.customer_phone}`}>{session.status === 'ai_active' ? 'Pausar IA' : 'Reactivar IA'}</button></td></tr>)}</tbody></table></div>}</div></section>;
 }

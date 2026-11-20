@@ -1,44 +1,4 @@
 import { supabase } from '@/lib/db';
 
-export default async function CitasPage() {
-  const { data: appointments } = await supabase
-    .from('appointments')
-    .select('*')
-    .order('starts_at', { ascending: true });
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Agenda de Citas</h2>
-      <div className="bg-white rounded-lg shadow p-6">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left p-2">Paciente</th>
-              <th className="text-left p-2">Servicio</th>
-              <th className="text-left p-2">Fianza</th>
-              <th className="text-left p-2">Consentimiento</th>
-            </tr>
-          </thead>
-          <tbody>
-            {appointments?.map((app) => (
-              <tr key={app.id} className="border-b">
-                <td className="p-2">{app.customer_name}</td>
-                <td className="p-2">{app.service_name}</td>
-                <td className="p-2">
-                    <span className={`px-2 rounded ${app.deposit_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {app.deposit_status}
-                    </span>
-                </td>
-                <td className="p-2">
-                    <span className={`px-2 rounded ${app.consent_status === 'signed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {app.consent_status}
-                    </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+const status = (value: string, type: 'deposit' | 'consent') => { const good = type === 'deposit' ? value === 'paid' || value === 'not_required' : value === 'signed'; return <span className={`badge ${good ? 'badge-green' : type === 'deposit' ? 'badge-red' : 'badge-yellow'}`}>{type === 'deposit' ? (value === 'paid' ? 'Pagada' : value === 'not_required' ? 'No requerida' : 'Pendiente') : (value === 'signed' ? 'Firmado' : 'Pendiente')}</span>; };
+export default async function CitasPage() { const { data: appointments, error } = await supabase.from('appointments').select('*').order('starts_at', { ascending: true }); const rows = appointments ?? []; return <section className="page"><div className="page-heading"><div><span className="eyebrow">Agenda</span><h1>Citas</h1><p className="subtitle">Controla próximos tratamientos, fianzas y consentimientos.</p></div><div className="summary">{rows.length} citas</div></div>{error && <p className="badge badge-red">No se pudieron cargar las citas.</p>}<div className="surface">{rows.length === 0 ? <div className="empty"><strong>Tu agenda está despejada</strong><span>Las citas confirmadas aparecerán aquí.</span></div> : <div className="table-wrap"><table className="data-table"><thead><tr><th>Fecha y hora</th><th>Paciente</th><th>Servicio</th><th>Fianza</th><th>Consentimiento</th></tr></thead><tbody>{rows.map((app) => <tr key={app.id}><td><strong>{new Date(app.starts_at).toLocaleDateString('es-ES')}</strong><br/><span className="subtitle">{new Date(app.starts_at).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</span></td><td>{app.customer_name}</td><td>{app.service_name}</td><td>{status(app.deposit_status,'deposit')}</td><td>{status(app.consent_status,'consent')}</td></tr>)}</tbody></table></div>}</div></section>; }
