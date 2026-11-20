@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   const { data: tenant } = await supabase
     .from('tenants')
     .select('*, services(*)')
-    .eq(channel === 'telegram' ? 'telegram_bot_token' : 'wa_phone_number_id', channel === 'telegram' ? process.env.TELEGRAM_BOT_TOKEN : phoneNumberId)
+    .eq(channel === 'telegram' ? 'id' : 'wa_phone_number_id', channel === 'telegram' ? tenantId : phoneNumberId)
     .single();
   if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
