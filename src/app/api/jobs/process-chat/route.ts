@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { DocusealApi } from '@docuseal/api';
 import { supabase } from '@/lib/db';
 import { sendWhatsAppMessage, downloadMetaMedia } from '@/lib/whatsapp';
+import { sendTelegramMessage } from '@/lib/telegram';
 
 const redis = Redis.fromEnv();
 const docuseal = new DocusealApi({
@@ -13,15 +14,17 @@ const docuseal = new DocusealApi({
 });
 
 export async function POST(req: NextRequest) {
-  const { phoneNumberId, from, triggeredAt } = await req.json();
+  const { channel = 'whatsapp', phoneNumberId, from, chatId, tenantId, triggeredAt } = await req.json();
+  const recipient = channel === 'telegram' ? String(chatId) : from;
+  const lastKey = channel === 'telegram' ? `last_ts:telegram:${tenantId}:${recipient}` : `last_ts:${phoneNumberId}:${recipient}`;
 
   // 1. Deduplicación avanzada
-  const lastTs = await redis.get<number>(`last_ts:${phoneNumberId}:${from}`);
+  const lastTs = await redis.get<number>(lastKey);
   if (lastTs && lastTs > triggeredAt) {
     return NextResponse.json({ skipped: 'newer_message_exists' });
   }
 
-  const bufferKey = `buffer:${phoneNumberId}:${from}`;
+  const bufferKey = channel === 'telegram' ? `buffer:telegram:${tenantId}:${recipient}` : `buffer:${phoneNumberId}:${recipient}`;
   const rawItems = await redis.lrange<string>(bufferKey, 0, -1);
   await redis.del(bufferKey);
   if (!rawItems.length) return NextResponse.json({ ok: true });
@@ -32,7 +35,7 @@ export async function POST(req: NextRequest) {
   const { data: tenant } = await supabase
     .from('tenants')
     .select('*, services(*)')
-    .eq('wa_phone_number_id', phoneNumberId)
+    .eq(channel === 'telegram' ? 'telegram_bot_token' : 'wa_phone_number_id', channel === 'telegram' ? process.env.TELEGRAM_BOT_TOKEN : phoneNumberId)
     .single();
   if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
@@ -88,6 +91,10 @@ export async function POST(req: NextRequest) {
     }
   });
 
-  await sendWhatsAppMessage(tenant, from, reply);
+  if (channel === 'telegram') {
+    await sendTelegramMessage(recipient, reply, tenant.telegram_bot_token);
+  } else {
+    await sendWhatsAppMessage(tenant, recipient, reply);
+  }
   return NextResponse.json({ ok: true });
 }
