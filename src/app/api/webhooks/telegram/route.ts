@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return NextResponse.json({ error: 'Telegram no configurado' }, { status: 503 });
 
-  const { data: tenant } = await supabase.from('tenants').select('id, telegram_bot_token').eq('telegram_bot_token', token).single();
+  const chatId = String(message.chat.id);
+  const { data: tenant } = await supabase.from('tenants').select('id, telegram_bot_token').eq('telegram_owner_chat_id', chatId).single();
   if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
-  const chatId = String(message.chat.id);
   const updateId = String(update.update_id ?? `${chatId}:${message.message_id}`);
   const isNew = await redis.set(`dedup:telegram:${updateId}`, '1', { ex: 3600, nx: true });
   if (!isNew) return NextResponse.json({ ok: true });
