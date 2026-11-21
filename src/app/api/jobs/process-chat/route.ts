@@ -80,22 +80,16 @@ export async function POST(req: NextRequest) {
 
   const userText = items.map((i) => i.text).filter(Boolean).join('\n');
 
-  // Generación con IA
-  const { text: reply } = await generateText({
-    model: 'anthropic/claude-3-5-sonnet-20241022',
-    system: tenant.system_prompt,
-    messages: [{ role: 'user', content: userText }],
-    tools: {
-      crearCita: tool({
-        description: 'Crea la cita y genera enlace de firma',
-        inputSchema: z.object({ customerName: z.string(), serviceName: z.string() }),
-        execute: async ({ customerName, serviceName }) => {
-            // Lógica de docuseal y supabase aquí...
-            return { success: true };
-        }
-      })
-    }
+  // Generación con Gemini (Google AI Studio; no usa Vercel AI Gateway)
+  const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!googleKey) throw new Error('Falta GOOGLE_GENERATIVE_AI_API_KEY');
+  const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleKey}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `${tenant.system_prompt}\n\nMensaje del paciente:\n${userText}` }] }] }),
   });
+  const aiJson = await aiResponse.json();
+  if (!aiResponse.ok) throw new Error(aiJson.error?.message || 'Error de Google Gemini');
+  const reply = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || 'No he podido generar una respuesta ahora mismo.';
 
   if (channel === 'telegram') {
     await sendTelegramMessage(recipient, reply, tenant.telegram_bot_token || process.env.TELEGRAM_BOT_TOKEN);
