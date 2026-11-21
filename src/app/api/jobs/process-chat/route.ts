@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (channel === 'telegram') {
-    await sendTelegramMessage(recipient, reply, tenant.telegram_bot_token);
+    await sendTelegramMessage(recipient, reply, tenant.telegram_bot_token || process.env.TELEGRAM_BOT_TOKEN);
   } else {
     await sendWhatsAppMessage(tenant, recipient, reply);
   }
