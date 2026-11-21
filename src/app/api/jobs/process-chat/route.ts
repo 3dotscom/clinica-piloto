@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
   // Generación con Gemini (Google AI Studio; no usa Vercel AI Gateway)
   const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!googleKey) throw new Error('Falta GOOGLE_GENERATIVE_AI_API_KEY');
-  const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${googleKey}`, {
+  const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleKey}`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `${tenant.system_prompt}\n\nMensaje del paciente:\n${userText}` }] }] }),
   });
