@@ -18,7 +18,9 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ error: 'Telegram no configurado' }, { status: 503 });
 
   const chatId = String(message.chat.id);
-  const { data: tenant } = await supabase.from('tenants').select('id, telegram_bot_token').eq('telegram_owner_chat_id', chatId).single();
+  // El propietario sirve para identificar la clínica; para pacientes usamos la primera clínica Telegram.
+  const byOwner = await supabase.from('tenants').select('id, telegram_bot_token').eq('telegram_owner_chat_id', chatId).maybeSingle();
+  const tenant = byOwner.data ?? (await supabase.from('tenants').select('id, telegram_bot_token').not('telegram_owner_chat_id', 'is', null).limit(1).maybeSingle()).data;
   if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
   const updateId = String(update.update_id ?? `${chatId}:${message.message_id}`);
