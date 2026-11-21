@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   // --- RAMA PACIENTE ---
   const { data: session } = await supabase
     .from('chat_sessions')
-    .upsert({ tenant_id: tenant.id, customer_phone: from }, { onConflict: 'tenant_id,customer_phone' })
+    .upsert({ tenant_id: tenant.id, customer_phone: recipient }, { onConflict: 'tenant_id,customer_phone' })
     .select()
     .single();
 
