@@ -36,10 +36,19 @@ export async function POST(req: NextRequest) {
   const bufferKey = `buffer:telegram:${tenant.id}:${chatId}`;
   await redis.rpush(bufferKey, JSON.stringify(payload));
   await redis.set(`last_ts:telegram:${tenant.id}:${chatId}`, payload.timestamp, { ex: 60 });
-  await qstash.publishJSON({
-    url: `${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/process-chat`,
-    body: { channel: 'telegram', tenantId: tenant.id, chatId, triggeredAt: payload.timestamp },
-    delay: 4,
-  });
+  const job = { channel: 'telegram', tenantId: tenant.id, chatId, triggeredAt: payload.timestamp };
+  try {
+    await qstash.publishJSON({
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/process-chat`,
+      body: job,
+      delay: 4,
+    });
+  } catch (error) {
+    // Si QStash está temporalmente mal configurado, procesamos en línea para no devolver 500 a Telegram.
+    console.error('QStash no disponible; procesando Telegram en línea', error);
+    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/jobs/process-chat`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(job),
+    });
+  }
   return NextResponse.json({ ok: true });
 }
