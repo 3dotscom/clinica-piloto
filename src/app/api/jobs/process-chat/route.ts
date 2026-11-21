@@ -70,6 +70,12 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
+  if (!session) {
+    const message = 'He recibido tu mensaje, pero la sesión aún no está disponible. Inténtalo de nuevo en unos segundos.';
+    if (channel === 'telegram') await sendTelegramMessage(recipient, message, tenant.telegram_bot_token || process.env.TELEGRAM_BOT_TOKEN);
+    else await sendWhatsAppMessage(tenant, recipient, message);
+    return NextResponse.json({ ok: true, fallback: 'session_unavailable' });
+  }
   if (session.status === 'human_handoff') return NextResponse.json({ paused: true });
 
   const userText = items.map((i) => i.text).filter(Boolean).join('\n');
