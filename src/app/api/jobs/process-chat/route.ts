@@ -80,16 +80,24 @@ export async function POST(req: NextRequest) {
 
   const userText = items.map((i) => i.text).filter(Boolean).join('\n');
 
-  // Generación con Gemini (Google AI Studio; no usa Vercel AI Gateway)
-  const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!googleKey) throw new Error('Falta GOOGLE_GENERATIVE_AI_API_KEY');
-  const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${googleKey}`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `${tenant.system_prompt}\n\nMensaje del paciente:\n${userText}` }] }] }),
+  // Generación con Groq (sin Vercel AI Gateway ni tarjeta de Google)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) throw new Error('Falta GROQ_API_KEY');
+  const aiResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${groqKey}` },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.3,
+      messages: [
+        { role: 'system', content: tenant.system_prompt },
+        { role: 'user', content: userText },
+      ],
+    }),
   });
   const aiJson = await aiResponse.json();
-  if (!aiResponse.ok) throw new Error(aiJson.error?.message || 'Error de Google Gemini');
-  const reply = aiJson.candidates?.[0]?.content?.parts?.[0]?.text || 'No he podido generar una respuesta ahora mismo.';
+  if (!aiResponse.ok) throw new Error(aiJson.error?.message || 'Error de Groq');
+  const reply = aiJson.choices?.[0]?.message?.content || 'No he podido generar una respuesta ahora mismo.';
 
   if (channel === 'telegram') {
     await sendTelegramMessage(recipient, reply, tenant.telegram_bot_token || process.env.TELEGRAM_BOT_TOKEN);
