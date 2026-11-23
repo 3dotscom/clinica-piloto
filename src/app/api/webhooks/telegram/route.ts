@@ -56,6 +56,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  if (callbackData === 'services' || callbackData === 'appointment') {
+    const { data: services } = await supabase.from('services').select('id, name, price_eur').eq('tenant_id', tenant.id).limit(20);
+    const rows = (services ?? []).map((service) => [{
+      text: `${service.name}${service.price_eur != null ? ` · ${service.price_eur}€` : ''}`,
+      callback_data: `service:${service.id}`,
+    }]);
+    const markup = rows.length ? { inline_keyboard: rows } : MENU_MARKUP;
+    const prompt = callbackData === 'appointment'
+      ? 'Selecciona el servicio para tu cita:'
+      : 'Estos son nuestros servicios:';
+    await sendTelegramMessage(chatId, prompt, tenant.telegram_bot_token || token, markup);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (callbackData?.startsWith('service:')) {
+    await sendTelegramMessage(chatId, 'Perfecto. Escribe el día y la franja horaria que prefieres (por ejemplo: martes por la tarde). Después te mostraré las opciones disponibles.', tenant.telegram_bot_token || token);
+    return NextResponse.json({ ok: true });
+  }
+
   const payload = {
     kind: callback ? 'callback' : 'message',
     callback: callbackData ?? null,
